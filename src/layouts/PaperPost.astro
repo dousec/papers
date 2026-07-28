@@ -1,0 +1,43 @@
+---
+import type { CollectionEntry } from "astro:content";
+import CommentSection from "../components/CommentSection.astro";
+import FormattedDate from "../components/FormattedDate.astro";
+import PdfViewer from "../components/PdfViewer.astro";
+import { collectionPath, tagPath } from "../utils/content";
+import { withBase } from "../utils/withBase";
+import SiteLayout from "./SiteLayout.astro";
+
+type PaperPostData = CollectionEntry<"papers">["data"];
+interface Props extends PaperPostData {
+	enableComments?: boolean;
+}
+const {
+	title,
+	description,
+	pubDate,
+	updatedDate,
+	pdf,
+	collection,
+	tags = [],
+	enableComments = false,
+} = Astro.props;
+---
+<SiteLayout title={title} description={description} type="article">
+  <article class="post-article">
+    <header class="post-header">
+      <nav aria-label="Breadcrumb"><a href={withBase("/papers/")}>Posts</a>{collection && <span>/</span>}{collection && <a href={withBase(collectionPath(collection))}>{collection}</a>}</nav>
+      <h1>{title}</h1>
+      <p class="description">{description}</p>
+      <div class="meta"><span>Published <FormattedDate date={pubDate} /></span>{updatedDate && <span>Updated <FormattedDate date={updatedDate} /></span>}</div>
+      {tags.length > 0 && <div class="tags">{tags.map((tag) => <a href={withBase(tagPath(tag))}>#{tag}</a>)}</div>}
+    </header>
+    <div class="content-prose"><PdfViewer pdfUrl={withBase(pdf)} />{enableComments && <CommentSection />}</div>
+  </article>
+</SiteLayout>
+<style>
+  .post-header,.content-prose { width:var(--reading-max-width); max-width:100%; margin-right:auto; margin-left:auto; }
+  .post-header { margin-bottom:1.4rem; }
+  nav { display:flex; margin-bottom:.55rem; gap:.4rem; color:var(--text-muted); font-size:var(--text-xs); } nav a { color:var(--text-muted); text-decoration:none; }
+  h1 { min-width:0; margin:0; font-size:var(--text-3xl); line-height:var(--line-height-tight); letter-spacing:0; overflow-wrap:anywhere; }
+  .description { margin:.45rem 0 0; color:var(--text-secondary); font-size:var(--text-sm); } .meta,.tags { display:flex; margin-top:.55rem; flex-wrap:wrap; gap:.35rem .8rem; color:var(--text-muted); font-size:var(--text-xs); } .tags { margin-top:.35rem; } .tags a { text-decoration:none; }
+</style>

@@ -1,0 +1,281 @@
+---
+interface Props {
+	pdfUrl: string;
+}
+const { pdfUrl } = Astro.props;
+---
+
+<div class="pdf-viewer-container">
+	<div class="pdf-toolbar">
+		<div class="pdf-toolbar-group">
+			<button type="button" class="pdf-btn" id="pdf-download" title="Download PDF" aria-label="Download PDF">
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+				<span>Download</span>
+			</button>
+		</div>
+		<div class="pdf-toolbar-group">
+			<button type="button" class="pdf-btn" id="pdf-zoom-out" title="Zoom Out" aria-label="Zoom Out">−</button>
+			<span class="pdf-info" id="pdf-zoom-info">125%</span>
+			<button type="button" class="pdf-btn" id="pdf-zoom-in" title="Zoom In" aria-label="Zoom In">+</button>
+		</div>
+	</div>
+	<div class="pdf-viewer" data-pdf-url={pdfUrl}>
+		<div class="pdf-loading">Loading PDF…</div>
+	</div>
+</div>
+
+<style>
+	.pdf-viewer-container {
+		width: 100%;
+		border-radius: var(--radius-ui, 6px);
+		border: 1px solid var(--border-color, #e9ecef);
+		background: var(--background-elevated, #f8f9fa);
+	}
+	.pdf-toolbar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.4rem 0.75rem;
+		background: var(--background-elevated, #f8f9fa);
+		border-bottom: 1px solid var(--border-color, #e9ecef);
+		gap: 0.5rem;
+		flex-wrap: wrap;
+		position: sticky;
+		top: 0;
+		z-index: 10;
+	}
+	.pdf-toolbar-group {
+		display: flex;
+		align-items: center;
+		gap: 0.2rem;
+	}
+	.pdf-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+		padding: 0.3rem 0.5rem;
+		border: 1px solid transparent;
+		border-radius: var(--radius-ui, 6px);
+		background: transparent;
+		color: var(--text-secondary, #4d5761);
+		font-size: var(--text-sm, 0.875rem);
+		line-height: 1;
+		cursor: pointer;
+		white-space: nowrap;
+		transition:
+			background 0.15s,
+			border-color 0.15s,
+			color 0.15s;
+	}
+	.pdf-btn:hover {
+		background: var(--background-body, #fff);
+		border-color: var(--border-color, #e9ecef);
+		color: var(--text-primary, #1f2328);
+	}
+	.pdf-btn:active {
+		background: var(--border-color, #e9ecef);
+	}
+	.pdf-info {
+		font-size: var(--text-xs, 0.75rem);
+		color: var(--text-muted, #6e7781);
+		min-width: 3.5rem;
+		text-align: center;
+		font-variant-numeric: tabular-nums;
+	}
+	.pdf-viewer {
+		width: 100%;
+		min-height: 60vh;
+		overflow: auto;
+	}
+	.pdf-loading {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 60vh;
+		color: var(--text-muted, #6c757d);
+		font-size: var(--text-sm, 0.875rem);
+	}
+	:global(.pdf-page) {
+		position: relative;
+		margin: 1rem auto;
+		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+		background: #fff;
+		width: fit-content;
+	}
+	:global(.pdf-page canvas) {
+		display: block;
+	}
+	:global(.pdf-text-layer) {
+		position: absolute;
+		inset: 0;
+		overflow: hidden;
+		opacity: 0.25;
+		line-height: 1;
+		z-index: 2;
+	}
+	:global(.pdf-text-layer span) {
+		color: transparent;
+		position: absolute;
+		white-space: pre;
+		cursor: text;
+		transform-origin: 0 0;
+	}
+	:global(.pdf-page-loading) {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 300px;
+		color: var(--text-muted, #6c757d);
+		font-size: var(--text-sm, 0.875rem);
+	}
+</style>
+
+<script>
+	import * as pdfjsLib from "pdfjs-dist";
+	import { withBase } from "../utils/withBase";
+
+	pdfjsLib.GlobalWorkerOptions.workerSrc = withBase("/pdfjs/pdf.worker.min.mjs");
+
+	const viewer = document.querySelector(".pdf-viewer");
+	if (!viewer) throw new Error("PDF viewer element not found");
+
+	const url = viewer.dataset.pdfUrl;
+	if (!url) throw new Error("pdfUrl data attribute is required.");
+
+	const loadingEl = viewer.querySelector(".pdf-loading");
+
+	let pdf = null;
+	let scale = 1.25;
+	const pageContainers = new Map();
+	const renderedPages = new Set();
+	let lazyObserver = null;
+
+	// --- DOM refs ---
+	const downloadBtn = document.getElementById("pdf-download");
+	const zoomOutBtn = document.getElementById("pdf-zoom-out");
+	const zoomInBtn = document.getElementById("pdf-zoom-in");
+	const zoomInfo = document.getElementById("pdf-zoom-info");
+
+	// --- Init ---
+	async function init() {
+		setupToolbar();
+		try {
+			pdf = await pdfjsLib.getDocument(url).promise;
+			loadingEl?.remove();
+			createPagePlaceholders();
+			setupLazyLoading();
+			renderPage(1);
+		} catch (err) {
+			console.error("PDF render error:", err);
+			if (loadingEl) loadingEl.textContent = "Failed to load PDF.";
+		}
+	}
+
+	function createPagePlaceholders() {
+		for (let i = 1; i <= pdf.numPages; i++) {
+			const container = document.createElement("div");
+			container.className = "pdf-page";
+			container.dataset.pageNumber = i;
+			const loader = document.createElement("div");
+			loader.className = "pdf-page-loading";
+			loader.textContent = `Loading page ${i}…`;
+			container.appendChild(loader);
+			viewer.appendChild(container);
+			pageContainers.set(i, container);
+		}
+	}
+
+	// --- Rendering ---
+	async function renderPage(pageNumber) {
+		if (renderedPages.has(pageNumber)) return;
+		renderedPages.add(pageNumber);
+		const container = pageContainers.get(pageNumber);
+		if (!container) return;
+		container.innerHTML = "";
+		try {
+			const page = await pdf.getPage(pageNumber);
+			const viewport = page.getViewport({ scale });
+
+			const canvas = document.createElement("canvas");
+			canvas.width = viewport.width;
+			canvas.height = viewport.height;
+			canvas.style.width = `${viewport.width}px`;
+			canvas.style.height = `${viewport.height}px`;
+			container.appendChild(canvas);
+
+			const ctx = canvas.getContext("2d");
+			await page.render({ canvasContext: ctx, viewport }).promise;
+
+			const textLayer = document.createElement("div");
+			textLayer.className = "pdf-text-layer";
+			container.appendChild(textLayer);
+
+			const textContent = await page.getTextContent();
+			const textLayerInstance = new pdfjsLib.TextLayer({
+				textContentSource: textContent,
+				container: textLayer,
+				viewport,
+			});
+			await textLayerInstance.render();
+
+			page.cleanup();
+		} catch (err) {
+			console.error(`Error rendering page ${pageNumber}:`, err);
+			container.innerHTML = `<div class="pdf-page-loading">Failed to render page ${pageNumber}.</div>`;
+			renderedPages.delete(pageNumber);
+		}
+	}
+
+	function setupLazyLoading() {
+		if (lazyObserver) lazyObserver.disconnect();
+		lazyObserver = new IntersectionObserver(
+			(entries) => {
+				for (const entry of entries) {
+					if (entry.isIntersecting) {
+						const pageNum = parseInt(entry.target.dataset.pageNumber, 10);
+						renderPage(pageNum);
+						lazyObserver.unobserve(entry.target);
+					}
+				}
+			},
+			{ rootMargin: "300px" },
+		);
+		for (const container of pageContainers.values()) {
+			lazyObserver.observe(container);
+		}
+	}
+
+	function rerenderAll() {
+		renderedPages.clear();
+		if (lazyObserver) lazyObserver.disconnect();
+		for (const container of pageContainers.values()) {
+			container.innerHTML =
+				`<div class="pdf-page-loading">Loading page ${container.dataset.pageNumber}…</div>`;
+		}
+		setupLazyLoading();
+	}
+
+	// --- Toolbar ---
+	function setupToolbar() {
+		downloadBtn.addEventListener("click", () => {
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = "";
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+		});
+		zoomOutBtn.addEventListener("click", () => changeScale(Math.max(0.5, +(scale - 0.25).toFixed(2))));
+		zoomInBtn.addEventListener("click", () => changeScale(Math.min(3, +(scale + 0.25).toFixed(2))));
+	}
+
+	function changeScale(newScale) {
+		if (newScale === scale) return;
+		scale = newScale;
+		zoomInfo.textContent = `${Math.round(scale * 100)}%`;
+		rerenderAll();
+	}
+
+	// --- Start ---
+	init();
+</script>

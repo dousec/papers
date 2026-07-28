@@ -1,0 +1,12 @@
+[
+	{
+		"id": "doujs-shikr",
+		"title": "DouJS",
+		"description": "Building a JavaScript Runtime for the Desktop",
+		"pubDate": "2026-07-27",
+		"pdf": "/papers/doujs-shikr.pdf",
+		"tags": ["research", "planning", "javascript"],
+		"collection": "DouJS",
+		"collectionDescription": "Papers about our next-generation runtime"
+	}
+]
