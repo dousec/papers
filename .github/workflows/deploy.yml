@@ -19,7 +19,7 @@ jobs:
           step: start
           token: ${{ secrets.GITHUB_TOKEN }}
           env: production
-      - run: rsync -av --delete dist/ /home/gh/www/papers.dousec.org/
+      - run: rsync -av --delete dist/ /opt/gh/www/papers.dousec.org/
       - uses: bobheadxi/deployments@v1
         with:
           step: finish
