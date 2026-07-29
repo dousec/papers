@@ -7,6 +7,6 @@
         "pdf": "/papers/doujs-shikr.pdf",
         "tags": ["research", "planning", "javascript"],
         "collection": "DouJS",
-        "collectionDescription": "Papers about our next-generation runtime for Desktop"
+        "collectionDescription": "Papers about our next-generation runtime"
     }
 ]
