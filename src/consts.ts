@@ -57,7 +57,8 @@ export const HOME = {
 		src: "/dousec.png",
 		alt: "DouSec",
 	},
-	motto: "AI lovers, specially Leonardo Urbina. The name... is the Prince Vibecoder.",
+	motto:
+		"AI lovers, specially Leonardo Urbina. The name... is the Prince Vibecoder.",
 	description: "Check discussions if u want to be more updated.",
 	recentPostsLimit: 6,
 } as const;
