@@ -11,9 +11,6 @@ jobs:
       labels: [self-hosted, maverick-dousec]
     steps:
       - uses: actions/checkout@v6
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
       - run: bun install --frozen-lockfile
       - run: bun run build
       - run: rsync -av --delete dist/ /var/lib/www/papers.dousec.org/
