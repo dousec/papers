@@ -13,4 +13,17 @@ jobs:
       - uses: actions/checkout@v6
       - run: bun install --frozen-lockfile
       - run: bun run build
+      - uses: bobheadxi/deployments@v1
+        id: deployment
+        with:
+          step: start
+          token: ${{ secrets.GITHUB_TOKEN }}
+          env: production
       - run: rsync -av --delete dist/ /home/gh/www/papers.dousec.org/
+      - uses: bobheadxi/deployments@v1
+        with:
+          step: finish
+          token: ${{ secrets.GITHUB_TOKEN }}
+          status: success
+          deployment_id: ${{ steps.deployment.outputs.deployment_id }}
+          env_url: https://papers.dousec.org
