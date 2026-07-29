@@ -73,8 +73,36 @@
               biome = {
                 enable = true;
                 formatCommand = "format";
-                settings.files.maxSize = 2097152;
-                excludes = [ "public/pdfjs/pdf.worker.min.mjs" ];
+                settings = {
+                  files = {
+                    maxSize = 2097152;
+                    includes = [
+                      "**"
+                      "!node_modules"
+                      "!dist"
+                      "!build"
+                      "!public/pdfjs/pdf.worker.min.mjs"
+                    ];
+                  };
+                  formatter = {
+                    indentStyle = "space";
+                    indentWidth = 4;
+                    lineEnding = "lf";
+                  };
+                  javascript.formatter = {
+                    quoteStyle = "single";
+                    semicolons = "always";
+                  };
+                  html.formatter = {
+                    indentScriptAndStyle = true;
+                  };
+                };
+                excludes = [
+                  "node_modules/**"
+                  "dist/**"
+                  "build/**"
+                  "public/pdfjs/pdf.worker.min.mjs"
+                ];
               };
             };
           };
